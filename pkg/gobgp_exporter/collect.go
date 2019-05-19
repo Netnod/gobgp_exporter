@@ -42,8 +42,8 @@ func (n *RouterNode) GatherMetrics() {
 
 	if n.connected {
 		// What is RouterID and AS number of this GoBGP server?
-		req := new(gobgpapi.GetServerRequest)
-		server, err := n.client.Gobgp.GetServer(context.Background(), req)
+		req := new(gobgpapi.GetBgpRequest)
+		server, err := n.client.Gobgp.GetBgp(context.Background(), req)
 		if err != nil {
 			n.IncrementErrorCounter()
 			log.Errorf("Can't query GoBGP: %v", err)

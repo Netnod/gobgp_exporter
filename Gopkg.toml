@@ -27,7 +27,7 @@
 
 [[constraint]]
   name = "github.com/osrg/gobgp"
-  version = "1.33"
+  version = "2.4.0"
 
 [[constraint]]
   name = "github.com/prometheus/client_golang"

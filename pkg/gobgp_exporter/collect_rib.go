@@ -20,6 +20,7 @@ import (
 	"github.com/prometheus/common/log"
 	"golang.org/x/net/context"
 	"strings"
+	"io"
 )
 
 // GetRibCounters collects BGP routing information base (RIB) related metrics.
@@ -27,46 +28,67 @@ func (n *RouterNode) GetRibCounters() {
 	if n.connected == false {
 		return
 	}
-	for _, resourceTypeName := range gobgpapi.Resource_name {
-		for _, addressFamilyName := range gobgpapi.Family_name {
+	for _, resourceTypeName := range gobgpapi.TableType_name {
+		for _, secondaryAddressFamilyName := range gobgpapi.Family_Safi_name {
 			if !n.connected {
 				continue
 			}
+
 			if _, exists := n.resourceTypes[resourceTypeName]; !exists {
 				continue
 			}
-			if _, exists := n.addressFamilies[addressFamilyName]; !exists {
+			if _, exists := n.addressFamilies[secondaryAddressFamilyName]; !exists {
 				continue
 			}
-			var resourceType gobgpapi.Resource
-			switch resourceTypeName {
-			case "GLOBAL":
-				resourceType = gobgpapi.Resource_GLOBAL
-			case "LOCAL":
-				resourceType = gobgpapi.Resource_LOCAL
-			default:
-				continue
+
+			for _, addressFamilyValue := range gobgpapi.Family_Afi_value {
+
+				var resourceType gobgpapi.TableType
+				switch resourceTypeName {
+				case "GLOBAL":
+					resourceType = gobgpapi.TableType_GLOBAL
+				case "LOCAL":
+					resourceType = gobgpapi.TableType_LOCAL
+				default:
+					continue
+				}
+
+				ribRequest := new(gobgpapi.ListPathRequest)
+				ribRequest.TableType = resourceType
+				family := gobgpapi.Family{
+					Afi : gobgpapi.Family_Afi(addressFamilyValue),
+					Safi : gobgpapi.Family_Safi(gobgpapi.Family_Safi_value[secondaryAddressFamilyName]),
+				}
+				ribRequest.Family = &family
+
+				pathStream, err := n.client.Gobgp.ListPath(context.Background(), ribRequest)
+				if err != nil {
+					log.Errorf("GoBGP query failed for resource type %s for %s address family: %s", resourceTypeName, secondaryAddressFamilyName, err)
+					n.IncrementErrorCounter()
+					continue
+				}
+
+				rib := make([]*gobgpapi.Destination, 0)
+				for {
+					_path, err := pathStream.Recv()
+					if err == io.EOF {
+						break
+					} else if err != nil {
+						log.Error(err)
+					}
+					rib = append(rib, _path.Destination)
+				}
+
+				log.Debugf("GoBGP RIB size for %s/%s: %d", resourceTypeName, secondaryAddressFamilyName, len(rib))
+				//spew.Dump(len(rib.Destinations))
+				n.metrics = append(n.metrics, prometheus.MustNewConstMetric(
+					routerRibDestinations,
+					prometheus.GaugeValue,
+					float64(len(rib)),
+					strings.ToLower(resourceTypeName),
+					strings.ToLower(secondaryAddressFamilyName),
+				))
 			}
-			ribRequest := new(gobgpapi.GetRibRequest)
-			ribRequest.Table = &gobgpapi.Table{
-				Type:   resourceType,
-				Family: uint32(gobgpapi.Family_value[addressFamilyName]),
-			}
-			rib, err := n.client.Gobgp.GetRib(context.Background(), ribRequest)
-			if err != nil {
-				log.Errorf("GoBGP query failed for resource type %s for %s address family: %s", resourceTypeName, addressFamilyName, err)
-				n.IncrementErrorCounter()
-				continue
-			}
-			log.Debugf("GoBGP RIB size for %s/%s: %d", resourceTypeName, addressFamilyName, len(rib.Table.Destinations))
-			//spew.Dump(len(rib.Destinations))
-			n.metrics = append(n.metrics, prometheus.MustNewConstMetric(
-				routerRibDestinations,
-				prometheus.GaugeValue,
-				float64(len(rib.Table.Destinations)),
-				strings.ToLower(resourceTypeName),
-				strings.ToLower(addressFamilyName),
-			))
 		}
 	}
 	return

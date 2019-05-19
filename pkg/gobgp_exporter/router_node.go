@@ -73,7 +73,7 @@ func NewRouterNode(addr string, timeout int) (*RouterNode, error) {
 	n.addressFamilies = make(map[string]bool)
 	n.resourceTypes["LOCAL"] = true
 	n.resourceTypes["GLOBAL"] = true
-	n.addressFamilies["IPv4"] = true
+	n.addressFamilies["UNICAST"] = true
 	n.addressFamilies["EVPN"] = true
 	client, err := gobgpapi.NewGobgpApiExtendedClient(addr, timeout)
 	if err != nil {
@@ -167,8 +167,8 @@ func (n *RouterNode) Reconnect() error {
 		return err
 	}
 	n.client = client
-	req := new(gobgpapi.GetServerRequest)
-	server, err := n.client.Gobgp.GetServer(context.Background(), req)
+	req := new(gobgpapi.GetBgpRequest)
+	server, err := n.client.Gobgp.GetBgp(context.Background(), req)
 	if err != nil {
 		return err
 	}

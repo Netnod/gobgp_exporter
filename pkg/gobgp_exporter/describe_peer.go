@@ -46,17 +46,17 @@ var (
 	)
 	bgpPeerReceivedRoutes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "peer", "received_route_count"),
-		"How many routes did the BGP peer sent to this router (limited to IPv4).",
+		"How many routes did the BGP peer sent to this router.",
 		[]string{"name"}, nil,
 	)
 	bgpPeerAcceptedRoutes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "peer", "accepted_route_count"),
-		"How many routes were accepted from the routes received from this BGP peer (limited to IPv4)",
+		"How many routes were accepted from the routes received from this BGP peer.",
 		[]string{"name"}, nil,
 	)
 	bgpPeerAdvertisedRoutes = prometheus.NewDesc(
 		prometheus.BuildFQName(namespace, "peer", "advertised_route_count"),
-		"How many routes were advertised to this BGP peer (limited to IPv4).",
+		"How many routes were advertised to this BGP peer.",
 		[]string{"name"}, nil,
 	)
 	bgpPeerOutQueue = prometheus.NewDesc(
